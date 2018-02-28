@@ -1,16 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"time"
+	"log"
+
+	"github.com/heppu/go-demo/api"
 )
 
-func greet(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello World! %s", time.Now())
-}
-
 func main() {
-	http.HandleFunc("/", greet)
-	http.ListenAndServe(":8000", nil)
+	if err := api.NewServer(":8000", api.NewSliceStorage()).Start(); err != nil {
+		log.Fatal(err)
+	}
 }
