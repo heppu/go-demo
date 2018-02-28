@@ -10,30 +10,44 @@ import (
 	"github.com/heppu/go-demo/api"
 )
 
+const (
+	slicePort = "8000"
+	mapPort   = "9000"
+)
+
 func init() {
-	go api.NewServer(":8000", api.NewMapStorage()).Start()
+	go api.NewServer(":"+slicePort, api.NewSliceStorage()).Start()
+	go api.NewServer(":"+mapPort, api.NewMapStorage()).Start()
 }
 
-func TestServer(t *testing.T) {
-	wg := sync.WaitGroup{}
-
+func TestServerWithSlice(t *testing.T) {
+	wg := &sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			user := addUser(t)
-			userExists(t, user)
-			deleteUser(t, user)
-			userNotExists(t, user)
-		}()
+		go addAndDeleteUser(t, slicePort, wg)
 	}
-
 	wg.Wait()
 }
 
-func addUser(t *testing.T) api.User {
-	resp, err := http.Post("http://localhost:8000/users", "application/json", bytes.NewBufferString(`{"Name": "Henri"}`))
+func TestServeMapStorage(t *testing.T) {
+	wg := &sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go addAndDeleteUser(t, mapPort, wg)
+	}
+	wg.Wait()
+}
+
+func addAndDeleteUser(t *testing.T, port string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	user := addUser(t, port)
+	userExists(t, port, user)
+	deleteUser(t, port, user)
+	userNotExists(t, port, user)
+}
+
+func addUser(t *testing.T, port string) api.User {
+	resp, err := http.Post("http://localhost:"+port+"/users", "application/json", bytes.NewBufferString(`{"Name": "Henri"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,8 +60,8 @@ func addUser(t *testing.T) api.User {
 	return user
 }
 
-func userExists(t *testing.T, user api.User) {
-	resp, err := http.Get("http://localhost:8000/users/" + user.ID)
+func userExists(t *testing.T, port string, user api.User) {
+	resp, err := http.Get("http://localhost:" + port + "/users/" + user.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,8 +72,8 @@ func userExists(t *testing.T, user api.User) {
 	}
 }
 
-func userNotExists(t *testing.T, user api.User) {
-	resp, err := http.Get("http://localhost:8000/users/" + user.ID)
+func userNotExists(t *testing.T, port string, user api.User) {
+	resp, err := http.Get("http://localhost:" + port + "/users/" + user.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,8 +84,8 @@ func userNotExists(t *testing.T, user api.User) {
 	}
 }
 
-func deleteUser(t *testing.T, user api.User) {
-	req, err := http.NewRequest("DELETE", "http://localhost:8000/users/"+user.ID, nil)
+func deleteUser(t *testing.T, port string, user api.User) {
+	req, err := http.NewRequest("DELETE", "http://localhost:"+port+"/users/"+user.ID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
